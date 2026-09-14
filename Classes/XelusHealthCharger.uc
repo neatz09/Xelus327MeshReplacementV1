@@ -1,6 +1,7 @@
 class XelusHealthCharger extends HealthCharger;
 
 #exec OBJ LOAD FILE=..\StaticMeshes\XELUS_VanillaHQ.usx
+#exec OBJ LOAD FILE=..\Textures\XELUS_VanillaHQ_TEX.utx
 
 defaultproperties
 {

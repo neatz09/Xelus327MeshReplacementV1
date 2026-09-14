@@ -1,6 +1,7 @@
 class XelusAdrenalinePickup extends AdrenalinePickup;
 
 #exec OBJ LOAD FILE=..\Textures\XELUS_VanillaHQ_TEX.utx
+#exec OBJ LOAD FILE=..\StaticMeshes\XELUS_VanillaHQ.usx
 
 var Material RepAdrenalineSkin;
 
@@ -19,7 +20,8 @@ simulated event PostNetReceive()
 
 defaultproperties
 {
-    StaticMesh=StaticMesh'XPickups_rc.AdrenalinePack'
+    StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPAdrenaline'
+    Skins(1)=TexPanner'XELUS_VanillaHQ_TEX.Adrenaline.Adrenaline_01_Inner_P'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False
