@@ -2,7 +2,7 @@
 
 **Source Author:** Neatz09  
 **Description:** For use with Xelus327 asset packs in UT2004  
-**Release Version:** v1
+**Release Version:** v1 Fixed server config
 
 Special thanks to **Xelus327** for the time and effort put into creating these asset mods for **Unreal Tournament 2004**. This project is intended to complement his work and provide an easy way to use his asset packs through a configurable mutator.
 
