@@ -1,4 +1,5 @@
-class MutXelus327MeshReplacement extends Mutator;
+class MutXelus327MeshReplacement extends Mutator
+    config (Xelus327MeshReplacement);
 
 #exec OBJ LOAD FILE=..\Textures\XELUS_VanillaHQ_TEX.utx
 #exec OBJ LOAD FILE=..\StaticMeshes\FixedXweapons_SM.usx
@@ -29,6 +30,7 @@ var localized string XelusAdrenalineDesc;
 event PreBeginPlay()
 {
     Super.PreBeginPlay();
+    StaticSaveConfig();
     AddToPackageMap("FixedXweapons_SM");
     AddToPackageMap("FixedXWeapons_TEX");
     AddToPackageMap("XELUS_VanillaHQ");
