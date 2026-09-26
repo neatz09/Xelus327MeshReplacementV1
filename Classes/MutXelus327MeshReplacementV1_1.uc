@@ -11,6 +11,7 @@ var() config bool bEnableXelusPickups;
 var() config bool bEnableXelusAmmoPickups;
 var() config bool bEnableXelusChargers;
 var() config bool bEnableXelusJumpPads;
+var() config bool bEnableExperimentalLiftpadReplacement;
 var() config bool bEnableHQTextures;
 var() config bool bDisablePickupAmbientGlow;
 var() config int XelusAdrenalineColor;
@@ -24,6 +25,8 @@ var localized string XelusChargersText;
 var localized string XelusChargersDesc;
 var localized string XelusJumpPadsText;
 var localized string XelusJumpPadsDesc;
+var localized string ExperimentalLiftpadReplacementText;
+var localized string ExperimentalLiftpadReplacementDesc;
 var localized string HQTexturesText;
 var localized string HQTexturesDesc;
 var localized string DisablePickupAmbientGlowText;
@@ -48,9 +51,10 @@ static function FillPlayInfo(PlayInfo PlayInfo)
     PlayInfo.AddSetting(default.RulesGroup, "bEnableXelusAmmoPickups", default.XelusAmmoPickupsText, 0, 1, "Check");
     PlayInfo.AddSetting(default.RulesGroup, "bEnableXelusChargers", default.XelusChargersText, 0, 1, "Check");
     PlayInfo.AddSetting(default.RulesGroup, "bEnableXelusJumpPads", default.XelusJumpPadsText, 0, 1, "Check");
+    PlayInfo.AddSetting(default.RulesGroup, "bEnableExperimentalLiftpadReplacement", default.ExperimentalLiftpadReplacementText, 0, 1, "Check");
     PlayInfo.AddSetting(default.RulesGroup, "bEnableHQTextures", default.HQTexturesText, 0, 1, "Check");
     PlayInfo.AddSetting(default.RulesGroup, "bDisablePickupAmbientGlow", default.DisablePickupAmbientGlowText, 0, 1, "Check");
-    PlayInfo.AddSetting(default.RulesGroup, "XelusAdrenalineColor", "Adrenaline Color", 0, 1, "Select", "0;Green;1;Red;2;Blue;3;Stock");
+    PlayInfo.AddSetting(default.RulesGroup, "XelusAdrenalineColor", "Adrenaline Color", 0, 1, "Select", "0;Green;1;Red;2;Blue;4;Purple;3;Stock");
 }
 
 static event string GetDescriptionText(string PropName)
@@ -69,6 +73,9 @@ static event string GetDescriptionText(string PropName)
 
     if (PropName == "bEnableXelusJumpPads")
         return default.XelusJumpPadsDesc;
+
+    if (PropName == "bEnableExperimentalLiftpadReplacement")
+        return default.ExperimentalLiftpadReplacementDesc;
 
     if (PropName == "bEnableHQTextures")
         return default.HQTexturesDesc;
@@ -148,6 +155,11 @@ function ApplyAdrenalineTexture(AdrenalinePickup Pickup)
     else if (XelusAdrenalineColor == 2)
     {
         Pickup.RepSkin = LoadReplacementTexture("XELUS_VanillaHQ_TEX.Adrenaline.Adrenaline_01_Large");
+        Pickup.Skins[0] = Pickup.RepSkin;
+    }
+    else if (XelusAdrenalineColor == 4)
+    {
+        Pickup.RepSkin = LoadReplacementTexture("XELUS_VanillaHQ_TEX.Adrenaline.Adrenaline_01_Ion");
         Pickup.Skins[0] = Pickup.RepSkin;
     }
 }
@@ -483,9 +495,28 @@ function bool ReplaceJumpPad(Actor Other)
     local JumpPad NewJumpPad;
     local StaticMeshActor OldVisual;
     local XelusJumpPadVisual NewVisual;
+    local rotator VisualRotation;
+    local vector VisualLocation;
+    local vector StockAxisX;
+    local vector StockAxisY;
+    local vector StockAxisZ;
+    local bool bIsExperimentalLiftpad;
     local int i;
 
     OldJumpPad = JumpPad(Other);
+
+    foreach AllActors(class'StaticMeshActor', OldVisual)
+        if (VSize(OldVisual.Location - OldJumpPad.Location) < 128.0
+            && OldVisual.Location.Z < OldJumpPad.Location.Z)
+            break;
+
+    bIsExperimentalLiftpad = (OldVisual != None
+        && OldJumpPad.Base == OldVisual
+        && OldVisual.StaticMesh != None
+        && OldVisual.StaticMesh.Name == 'pipeouterrim02AL');
+
+    if (bIsExperimentalLiftpad && !bEnableExperimentalLiftpadReplacement)
+        return false;
 
     OldJumpPad.RemoteRole = ROLE_SimulatedProxy;
     OldJumpPad.bAlwaysRelevant = true;
@@ -494,11 +525,6 @@ function bool ReplaceJumpPad(Actor Other)
     OldJumpPad.bHidden = true;
     OldJumpPad.SetCollision(false, false, false);
     OldJumpPad.SetDrawType(DT_None);
-
-    foreach AllActors(class'StaticMeshActor', OldVisual)
-        if (VSize(OldVisual.Location - OldJumpPad.Location) < 128.0
-            && OldVisual.Location.Z < OldJumpPad.Location.Z)
-            break;
 
     if (OldVisual != None)
     {
@@ -524,15 +550,31 @@ function bool ReplaceJumpPad(Actor Other)
         return false;
     }
 
+    if (bIsExperimentalLiftpad && (OldJumpPad.Base != None))
+        NewJumpPad.SetBase(OldJumpPad.Base);
+
     if (OldVisual != None)
     {
+        VisualRotation = OldVisual.Rotation;
+        VisualRotation.Roll = 0;
+        VisualLocation = OldVisual.Location;
+        if (bIsExperimentalLiftpad)
+        {
+            GetAxes(OldVisual.Rotation, StockAxisX, StockAxisY, StockAxisZ);
+            VisualLocation -= StockAxisY * (71.0 * OldVisual.DrawScale);
+        }
         NewVisual = Spawn(class'XelusJumpPadVisual', OldVisual.Owner, ,
-            OldVisual.Location, OldVisual.Rotation);
+            VisualLocation, VisualRotation);
         if (NewVisual != None)
         {
-            NewVisual.SetDrawScale(OldVisual.DrawScale);
+            if (bIsExperimentalLiftpad)
+                NewVisual.SetDrawScale(OldVisual.DrawScale * 2.048930);
+            else
+                NewVisual.SetDrawScale(OldVisual.DrawScale);
             NewVisual.SetDrawScale3D(OldVisual.DrawScale3D);
             NewVisual.PrePivot = OldVisual.PrePivot;
+            if (bIsExperimentalLiftpad)
+                NewVisual.SetBase(OldVisual);
             NewVisual.bHidden = false;
         }
     }
@@ -559,6 +601,26 @@ function bool ReplaceJumpPad(Actor Other)
     return true;
 }
 
+function bool IsExperimentalLiftpad(Actor Other)
+{
+    local JumpPad Pad;
+    local StaticMeshActor Visual;
+
+    Pad = JumpPad(Other);
+    if (Pad == None)
+        return false;
+
+    foreach AllActors(class'StaticMeshActor', Visual)
+        if (VSize(Visual.Location - Pad.Location) < 128.0
+            && Visual.Location.Z < Pad.Location.Z)
+            break;
+
+    if (Visual == None || Pad.Base != Visual || Visual.StaticMesh == None)
+        return false;
+
+    return Visual.StaticMesh.Name == 'pipeouterrim02AL';
+}
+
 function bool CheckReplacement(Actor Other, out byte bSuperRelevant)
 {
     local UTAmmoPickup AmmoPickupActor;
@@ -568,7 +630,8 @@ function bool CheckReplacement(Actor Other, out byte bSuperRelevant)
     if (!bEnableFixedXWeapons && !bEnableXelusPickups
         && !bEnableXelusAmmoPickups && !bEnableXelusChargers
         && !bEnableXelusJumpPads && !bEnableHQTextures
-        && !bDisablePickupAmbientGlow)
+        && !bDisablePickupAmbientGlow
+        && !bEnableExperimentalLiftpadReplacement)
         return true;
 
     ApplyPickupAmbientGlowSetting(Other);
@@ -646,7 +709,10 @@ function bool CheckReplacement(Actor Other, out byte bSuperRelevant)
         ApplyWeaponChargerMesh(xWeaponBase(Other));
     }
 
-    if (bEnableXelusJumpPads && Other.IsA('UTJumpPad'))
+    if (Other.IsA('UTJumpPad')
+        && (bEnableXelusJumpPads
+            || (bEnableExperimentalLiftpadReplacement
+                && IsExperimentalLiftpad(Other))))
     {
         if (ReplaceJumpPad(Other))
             return false;
@@ -756,8 +822,9 @@ defaultproperties
     bEnableXelusAmmoPickups=True
     bEnableXelusChargers=True
     bEnableXelusJumpPads=True
+    bEnableExperimentalLiftpadReplacement=False
     bEnableHQTextures=True
-    bDisablePickupAmbientGlow=True
+    bDisablePickupAmbientGlow=False
     XelusAdrenalineColor=1
     FriendlyName="Xelus327 Mesh Replacement V1_1"
     Description="Replaces selected weapon, ammo, charger, jump pad, and adrenaline visuals without changing gameplay properties."
@@ -771,6 +838,8 @@ defaultproperties
     XelusChargersDesc="Enable or disable the Xelus replacement health, shield, and weapon charger models."
     XelusJumpPadsText="Xelus Jump Pad Models"
     XelusJumpPadsDesc="Enable or disable the Xelus replacement jump pad model."
+    ExperimentalLiftpadReplacementText="Experimental Liftpad Replacement"
+    ExperimentalLiftpadReplacementDesc="Enable the experimental replacement for Deck17-style liftpads."
     HQTexturesText="Xelus HQ Pickup Textures"
     HQTexturesDesc="Enable or disable Xelus high-quality textures on supported health, adrenaline, and charger pickups."
     DisablePickupAmbientGlowText="Disable Pickup Ambient Glow"
