@@ -1,0 +1,26 @@
+class XelusShieldBoxPickup extends ShieldPack;
+
+function bool IsSuperItem()
+{
+    return Super.IsSuperItem()
+        || (MyMarker != None && MyMarker.bSuperPickup);
+}
+
+#exec OBJ LOAD FILE=..\StaticMeshes\XELUS_VanillaHQ.usx
+#exec OBJ LOAD FILE=..\Textures\XELUS_VanillaHQ_TEX.utx
+
+defaultproperties
+{
+    Physics=PHYS_None
+    bShouldBaseAtStartup=False
+    RotationRate=(Yaw=0)
+    DrawScale=0.600000
+    StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPShieldBox'
+    Skins(0)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Box_SH'
+    Skins(1)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Pulse_SH'
+    RemoteRole=ROLE_DumbProxy
+    bAlwaysRelevant=True
+    bOnlyReplicateHidden=False
+    NetUpdateFrequency=0.100000
+    NetPriority=1.400000
+}
