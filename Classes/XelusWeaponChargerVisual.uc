@@ -32,6 +32,7 @@ defaultproperties
     StaticMesh=StaticMesh'XELUS_VanillaHQ.PickupChargers.ChargerWeapon'
     DrawScale=0.500000
     PrePivot=(Z=3.700000)
+    AmbientGlow=64
     RemoteRole=ROLE_SimulatedProxy
     bAlwaysRelevant=True
     bStatic=False

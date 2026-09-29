@@ -14,7 +14,7 @@ defaultproperties
     Physics=PHYS_None
     bShouldBaseAtStartup=False
     RotationRate=(Yaw=0)
-    DrawScale=0.600000
+    DrawScale=0.5
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPShieldBox'
     Skins(0)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Box_SH'
     Skins(1)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Pulse_SH'

@@ -22,6 +22,12 @@ simulated function PostBeginPlay()
 
 function TurnOn()
 {
+    local Pickup OldPickup;
+    local Pickup NewPickup;
+    local bool OldInstantRespawn;
+    local bool OldPredictRespawns;
+    local float OldRespawnTime;
+
     if (NumClasses <= 0)
         return;
 
@@ -32,8 +38,21 @@ function TurnOn()
 
     PowerUp = PickupClasses[CurrentClass];
 
-    if (MyPickup != None)
-        MyPickup = MyPickup.Transmogrify(PowerUp);
+    if (PowerUp == None || MyPickup == None)
+        return;
+
+    OldPickup = MyPickup;
+    OldInstantRespawn = OldPickup.bInstantRespawn;
+    OldPredictRespawns = OldPickup.bPredictRespawns;
+    OldRespawnTime = OldPickup.RespawnTime;
+    NewPickup = OldPickup.Transmogrify(PowerUp);
+    if (NewPickup != None)
+    {
+        NewPickup.bInstantRespawn = OldInstantRespawn;
+        NewPickup.bPredictRespawns = OldPredictRespawns;
+        NewPickup.RespawnTime = OldRespawnTime;
+        MyPickup = NewPickup;
+    }
 }
 
 defaultproperties

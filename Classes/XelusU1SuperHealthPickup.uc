@@ -14,7 +14,7 @@ defaultproperties
     Physics=PHYS_None
     bShouldBaseAtStartup=False
     RotationRate=(Yaw=0)
-    DrawScale=0.800000
+    DrawScale=0.6
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPHealthSuperU1'
     Skins(0)=Shader'XELUS_VanillaHQ_TEX.Health.Health_05_Unreal1_SH'
     Skins(1)=Shader'XELUS_VanillaHQ_TEX.Health.Health_02_ALT_SH'
