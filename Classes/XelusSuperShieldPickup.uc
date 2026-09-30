@@ -6,8 +6,6 @@ class XelusSuperShieldPickup extends SuperShieldPack;
 defaultproperties
 {
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPShieldSuper'
-    Skins(0)=Texture'XELUS_VanillaHQ_TEX.ShieldS.Shield_Super'
-    Skins(1)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Pulse_SH'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False

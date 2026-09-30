@@ -16,9 +16,6 @@ defaultproperties
     RotationRate=(Yaw=0)
     DrawScale=0.6
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPHealthSuperU1'
-    Skins(0)=Shader'XELUS_VanillaHQ_TEX.Health.Health_05_Unreal1_SH'
-    Skins(1)=Shader'XELUS_VanillaHQ_TEX.Health.Health_02_ALT_SH'
-    Skins(2)=Shader'XELUS_VanillaHQ_TEX.Health.Health_01_Small_Inner_SH'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False

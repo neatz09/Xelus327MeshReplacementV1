@@ -21,7 +21,6 @@ simulated event PostNetReceive()
 defaultproperties
 {
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPAdrenaline'
-    Skins(1)=TexPanner'XELUS_VanillaHQ_TEX.Adrenaline.Adrenaline_01_Inner_P'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False

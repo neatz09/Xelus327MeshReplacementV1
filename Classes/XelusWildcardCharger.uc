@@ -20,6 +20,14 @@ simulated function PostBeginPlay()
     Super.PostBeginPlay();
 }
 
+function SpawnPickup()
+{
+    if (MyPickup != None)
+        return;
+
+    Super.SpawnPickup();
+}
+
 function TurnOn()
 {
     local Pickup OldPickup;
@@ -27,6 +35,8 @@ function TurnOn()
     local bool OldInstantRespawn;
     local bool OldPredictRespawns;
     local float OldRespawnTime;
+    local name OldEvent;
+    local name OldTag;
 
     if (NumClasses <= 0)
         return;
@@ -45,12 +55,16 @@ function TurnOn()
     OldInstantRespawn = OldPickup.bInstantRespawn;
     OldPredictRespawns = OldPickup.bPredictRespawns;
     OldRespawnTime = OldPickup.RespawnTime;
+    OldEvent = OldPickup.Event;
+    OldTag = OldPickup.Tag;
     NewPickup = OldPickup.Transmogrify(PowerUp);
     if (NewPickup != None)
     {
         NewPickup.bInstantRespawn = OldInstantRespawn;
         NewPickup.bPredictRespawns = OldPredictRespawns;
         NewPickup.RespawnTime = OldRespawnTime;
+        NewPickup.Event = OldEvent;
+        NewPickup.Tag = OldTag;
         MyPickup = NewPickup;
     }
 }

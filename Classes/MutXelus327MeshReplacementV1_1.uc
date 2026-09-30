@@ -137,50 +137,6 @@ function Texture LoadReplacementTexture(string TextureName)
     return Texture(DynamicLoadObject(TextureName, class'Texture'));
 }
 
-simulated function Material RemovePickupShaderGlow(Material SourceMaterial)
-{
-    local Shader SourceShader;
-    local Shader ReplacementShader;
-
-    SourceShader = Shader(SourceMaterial);
-    if (SourceShader == None
-        || (SourceShader.SelfIllumination == None
-            && SourceShader.SelfIlluminationMask == None))
-        return SourceMaterial;
-
-    ReplacementShader = New(None) Class'Shader';
-    if (ReplacementShader == None)
-        return SourceMaterial;
-
-    ReplacementShader.Diffuse = SourceShader.Diffuse;
-    ReplacementShader.Opacity = SourceShader.Opacity;
-    ReplacementShader.Specular = SourceShader.Specular;
-    ReplacementShader.SpecularityMask = SourceShader.SpecularityMask;
-    ReplacementShader.Detail = SourceShader.Detail;
-    ReplacementShader.DetailScale = SourceShader.DetailScale;
-    ReplacementShader.OutputBlending = SourceShader.OutputBlending;
-    ReplacementShader.TwoSided = SourceShader.TwoSided;
-    ReplacementShader.Wireframe = SourceShader.Wireframe;
-    ReplacementShader.ModulateStaticLighting2X = SourceShader.ModulateStaticLighting2X;
-    ReplacementShader.PerformLightingOnSpecularPass = SourceShader.PerformLightingOnSpecularPass;
-    ReplacementShader.ModulateSpecular2X = SourceShader.ModulateSpecular2X;
-    ReplacementShader.FallbackMaterial = SourceShader.FallbackMaterial;
-
-    return ReplacementShader;
-}
-
-simulated function RemovePickupShaderGlowFromActor(Actor Other)
-{
-    local int SkinIndex;
-
-    if (Other == None)
-        return;
-
-    Other.bUnlit = false;
-    for (SkinIndex = 0; SkinIndex < Other.Skins.Length; SkinIndex++)
-        Other.Skins[SkinIndex] = RemovePickupShaderGlow(Other.Skins[SkinIndex]);
-}
-
 function ApplyPickupAmbientGlowSetting(Actor Other)
 {
     local Pickup PickupActor;
@@ -192,29 +148,23 @@ function ApplyPickupAmbientGlowSetting(Actor Other)
 
     WeaponChargerVisual = XelusWeaponChargerVisual(Other);
     if (WeaponChargerVisual != None)
-    {
         WeaponChargerVisual.AmbientGlow = 0;
-        RemovePickupShaderGlowFromActor(WeaponChargerVisual);
-    }
 
     PickupActor = Pickup(Other);
     if (PickupActor != None)
     {
         PickupActor.bAmbientGlow = false;
         PickupActor.AmbientGlow = 0;
-        RemovePickupShaderGlowFromActor(PickupActor);
     }
 
     PickupBase = xPickupBase(Other);
     if (PickupBase != None)
     {
         PickupBase.AmbientGlow = 0;
-        RemovePickupShaderGlowFromActor(PickupBase);
         if (PickupBase.MyPickup != None)
         {
             PickupBase.MyPickup.bAmbientGlow = false;
             PickupBase.MyPickup.AmbientGlow = 0;
-            RemovePickupShaderGlowFromActor(PickupBase.MyPickup);
         }
     }
 }
@@ -229,27 +179,21 @@ simulated function ApplyPickupAmbientGlowToLocalActors()
         return;
 
     foreach AllActors(class'XelusWeaponChargerVisual', WeaponChargerVisual)
-    {
         WeaponChargerVisual.AmbientGlow = 0;
-        RemovePickupShaderGlowFromActor(WeaponChargerVisual);
-    }
 
     foreach AllActors(class'Pickup', PickupActor)
     {
         PickupActor.bAmbientGlow = false;
         PickupActor.AmbientGlow = 0;
-        RemovePickupShaderGlowFromActor(PickupActor);
     }
 
     foreach AllActors(class'xPickupBase', PickupBase)
     {
         PickupBase.AmbientGlow = 0;
-        RemovePickupShaderGlowFromActor(PickupBase);
         if (PickupBase.MyPickup != None)
         {
             PickupBase.MyPickup.bAmbientGlow = false;
             PickupBase.MyPickup.AmbientGlow = 0;
-            RemovePickupShaderGlowFromActor(PickupBase.MyPickup);
         }
     }
 }
@@ -1525,6 +1469,22 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
     else if (NewCharger.MyPickup == None && NewCharger.PowerUp != None)
         NewCharger.SpawnPickup();
 
+    ExistingPickup = NewCharger.MyPickup;
+    foreach AllActors(class'Pickup', CandidatePickup)
+    {
+        if (CandidatePickup.PickUpBase == NewCharger)
+        {
+            if (ExistingPickup == None)
+                ExistingPickup = CandidatePickup;
+            else if (CandidatePickup != ExistingPickup)
+                CandidatePickup.Destroy();
+        }
+    }
+    if (NewCharger.MyPickup == None && ExistingPickup != None)
+        NewCharger.MyPickup = ExistingPickup;
+    if (ExistingPickup != None)
+        ExistingPickup.PickUpBase = NewCharger;
+
     ApplyPickupAmbientGlowSetting(NewCharger);
 
     if (NewCharger.bDelayedSpawn && (NewCharger.MyPickup != None))
@@ -1537,6 +1497,7 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
 
     if (NewCharger.MyMarker != None)
     {
+        NewCharger.MyMarker.myPickupBase = NewCharger;
         NewCharger.MyMarker.MarkedItem = NewCharger.MyPickup;
         NewCharger.MyMarker.ExtraCost = NewCharger.ExtraPathCost;
         if (NewCharger.MyPickup != None)
@@ -1644,12 +1605,7 @@ function bool CheckReplacement(Actor Other, out byte bSuperRelevant)
     if (bEnableExperimentalAmmoGrounding && IsXelusAmmoPickup(Other))
         GroundAmmoPickup(UTAmmoPickup(Other));
 
-    if ((Other.IsA('UDamagePack')
-        || Other.IsA('ShieldPack')
-        || Other.IsA('SuperShieldPack')
-        || Other.IsA('HealthPack')
-        || Other.IsA('SuperHealthPack'))
-        && IsWildcardPickup(Pickup(Other)))
+    if (Pickup(Other) != None && IsWildcardPickup(Pickup(Other)))
         return true;
 
     if (Other.IsA('XelusLightningRiflePickup')
