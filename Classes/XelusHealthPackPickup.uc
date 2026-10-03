@@ -6,6 +6,8 @@ class XelusHealthPackPickup extends HealthPack;
 defaultproperties
 {
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPHealthMedium'
+    Skins(0)=Texture'XELUS_VanillaHQ_TEX.Health.Health_02_Medium'
+    Skins(1)=Shader'XELUS_VanillaHQ_TEX.Health.Health_02_ALT_SH'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False

@@ -6,6 +6,8 @@ class XelusClassicUDamagePickup extends UDamagePack;
 defaultproperties
 {
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPUDamageHologram'
+    Skins(0)=FinalBlend'PickupSkins.Shaders.FinalHealthGlass'
+    Skins(1)=Shader'XELUS_VanillaHQ_TEX.Udamage.UDamage_01_SH'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False

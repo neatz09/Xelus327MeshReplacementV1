@@ -6,6 +6,8 @@ class XelusClassicShieldPickup extends ShieldPack;
 defaultproperties
 {
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPShieldHologram'
+    Skins(0)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Scanlines_SH'
+    Skins(1)=FinalBlend'PickupSkins.Shaders.ShieldFinal'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False

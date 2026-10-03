@@ -46,6 +46,13 @@ var localized string XelusSuperShieldDesc;
 var localized string XelusHealthDesc;
 var localized string XelusMegaHealthDesc;
 
+struct LitPickupShader
+{
+    var Shader Original;
+    var Shader Replacement;
+};
+var array<LitPickupShader> LitPickupShaders;
+
 replication
 {
     reliable if (Role == ROLE_Authority && (bNetInitial || bNetDirty))
@@ -137,6 +144,62 @@ function Texture LoadReplacementTexture(string TextureName)
     return Texture(DynamicLoadObject(TextureName, class'Texture'));
 }
 
+simulated function DisablePickupGlow(Pickup PickupActor)
+{
+    local Shader Original;
+    local Shader Replacement;
+    local int i, j;
+
+    PickupActor.bAmbientGlow = false;
+    PickupActor.AmbientGlow = 0;
+    if (SuperHealthPack(PickupActor) == None
+        && XelusHealthMedBoxPickup(PickupActor) == None)
+        return;
+
+    PickupActor.bUnlit = false;
+    for (i = 0; i < PickupActor.Skins.Length; i++)
+    {
+        Original = Shader(PickupActor.Skins[i]);
+        if (Original == None || Original.SelfIllumination == None)
+            continue;
+
+        Replacement = None;
+        for (j = 0; j < LitPickupShaders.Length; j++)
+            if (LitPickupShaders[j].Original == Original)
+            {
+                Replacement = LitPickupShaders[j].Replacement;
+                break;
+            }
+        if (Replacement == None)
+        {
+            Replacement = new(None) class'Shader';
+            if (Replacement == None)
+            {
+                Log("Xelus327: Unable to create lit pickup material for "$Original);
+                continue;
+            }
+            Replacement.Diffuse = Original.Diffuse;
+            Replacement.Opacity = Original.Opacity;
+            Replacement.Specular = Original.Specular;
+            Replacement.SpecularityMask = Original.SpecularityMask;
+            Replacement.Detail = Original.Detail;
+            Replacement.DetailScale = Original.DetailScale;
+            Replacement.OutputBlending = Original.OutputBlending;
+            Replacement.TwoSided = Original.TwoSided;
+            Replacement.Wireframe = Original.Wireframe;
+            Replacement.ModulateStaticLighting2X = Original.ModulateStaticLighting2X;
+            Replacement.PerformLightingOnSpecularPass = Original.PerformLightingOnSpecularPass;
+            Replacement.ModulateSpecular2X = Original.ModulateSpecular2X;
+            Replacement.FallbackMaterial = Original.Diffuse;
+            j = LitPickupShaders.Length;
+            LitPickupShaders.Length = j + 1;
+            LitPickupShaders[j].Original = Original;
+            LitPickupShaders[j].Replacement = Replacement;
+        }
+        PickupActor.Skins[i] = Replacement;
+    }
+}
+
 function ApplyPickupAmbientGlowSetting(Actor Other)
 {
     local Pickup PickupActor;
@@ -153,8 +216,7 @@ function ApplyPickupAmbientGlowSetting(Actor Other)
     PickupActor = Pickup(Other);
     if (PickupActor != None)
     {
-        PickupActor.bAmbientGlow = false;
-        PickupActor.AmbientGlow = 0;
+        DisablePickupGlow(PickupActor);
     }
 
     PickupBase = xPickupBase(Other);
@@ -163,8 +225,7 @@ function ApplyPickupAmbientGlowSetting(Actor Other)
         PickupBase.AmbientGlow = 0;
         if (PickupBase.MyPickup != None)
         {
-            PickupBase.MyPickup.bAmbientGlow = false;
-            PickupBase.MyPickup.AmbientGlow = 0;
+            DisablePickupGlow(PickupBase.MyPickup);
         }
     }
 }
@@ -179,12 +240,13 @@ simulated function ApplyPickupAmbientGlowToLocalActors()
         return;
 
     foreach AllActors(class'XelusWeaponChargerVisual', WeaponChargerVisual)
+    {
         WeaponChargerVisual.AmbientGlow = 0;
+    }
 
     foreach AllActors(class'Pickup', PickupActor)
     {
-        PickupActor.bAmbientGlow = false;
-        PickupActor.AmbientGlow = 0;
+        DisablePickupGlow(PickupActor);
     }
 
     foreach AllActors(class'xPickupBase', PickupBase)
@@ -192,8 +254,7 @@ simulated function ApplyPickupAmbientGlowToLocalActors()
         PickupBase.AmbientGlow = 0;
         if (PickupBase.MyPickup != None)
         {
-            PickupBase.MyPickup.bAmbientGlow = false;
-            PickupBase.MyPickup.AmbientGlow = 0;
+            DisablePickupGlow(PickupBase.MyPickup);
         }
     }
 }
@@ -257,6 +318,10 @@ function bool IsWildcardPickup(Pickup PickupActor)
     if (PickupActor == None)
         return false;
 
+    if (WildcardBase(PickupActor.Owner) != None
+        || XelusWildcardCharger(PickupActor.Owner) != None)
+        return true;
+
     if (PickupActor.PickUpBase != None)
         return PickupActor.PickUpBase.IsA('WildcardBase')
             || PickupActor.PickUpBase.IsA('XelusWildcardCharger');
@@ -272,6 +337,65 @@ function bool IsWildcardPickup(Pickup PickupActor)
     }
 
     return false;
+}
+
+function bool IsDisallowedWildcardPickupClass(
+    class<Pickup> PickupClass)
+{
+    return PickupClass != None
+        && (ClassIsChildOf(PickupClass, class'AdrenalinePickup')
+            || ClassIsChildOf(PickupClass, class'MiniHealthPack'));
+}
+
+function class<TournamentPickup> GetWildcardReplacementClass(
+    class<Pickup> PickupClass)
+{
+    if (PickupClass == None)
+        return None;
+
+    if (ClassIsChildOf(PickupClass, class'UDamagePack'))
+    {
+        if (XelusUDamageStyle == 1)
+            return class'XelusUDamagePickup';
+        if (XelusUDamageStyle == 2)
+            return class'XelusClassicUDamagePickup';
+    }
+    else if (ClassIsChildOf(PickupClass, class'SuperShieldPack'))
+    {
+        if (XelusSuperShieldStyle == 1)
+            return class'XelusSuperShieldPickup';
+        if (XelusSuperShieldStyle == 2)
+            return class'XelusClassicSuperShieldPickup';
+        if (XelusSuperShieldStyle == 3)
+            return class'XelusSuperShieldBoxPickup';
+    }
+    else if (ClassIsChildOf(PickupClass, class'ShieldPack'))
+    {
+        if (XelusShieldStyle == 1)
+            return class'XelusShieldPickup';
+        if (XelusShieldStyle == 2)
+            return class'XelusClassicShieldPickup';
+        if (XelusShieldStyle == 3)
+            return class'XelusShieldBoxPickup';
+    }
+    else if (ClassIsChildOf(PickupClass, class'SuperHealthPack'))
+    {
+        if (XelusMegaHealthStyle == 1)
+            return class'XelusSuperHealthPickup';
+        if (XelusMegaHealthStyle == 2)
+            return class'XelusU1SuperHealthPickup';
+    }
+    else if (ClassIsChildOf(PickupClass, class'HealthPack'))
+    {
+        if (XelusHealthStyle == 1)
+            return class'XelusHealthPackPickup';
+        if (XelusHealthStyle == 2)
+            return class'XelusClassicHealthPackPickup';
+        if (XelusHealthStyle == 3)
+            return class'XelusHealthMedBoxPickup';
+    }
+
+    return class<TournamentPickup>(PickupClass);
 }
 
 function ApplySelectedChargerPowerUp(xPickupBase Charger)
@@ -1351,6 +1475,7 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
     local bool OriginalBlockActors;
     local bool OriginalBlockPlayers;
     local bool OriginalCollideWorld;
+    local bool bCurrentClassCopied;
     local int i;
 
     if (OldCharger == None)
@@ -1373,6 +1498,13 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
     Marker = OldCharger.MyMarker;
     if (Marker == None && ExistingPickup != None)
         Marker = ExistingPickup.MyMarker;
+    if (ExistingPickup != None
+        && (ExistingPickup.IsA('AdrenalinePickup')
+            || ExistingPickup.IsA('MiniHealthPack')))
+    {
+        ExistingPickup.Destroy();
+        ExistingPickup = None;
+    }
     OriginalPowerUp = OldCharger.PowerUp;
     OriginalHidden = OldCharger.bHidden;
     OriginalCollideActors = OldCharger.bCollideActors;
@@ -1426,35 +1558,50 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
     NewCharger.ExtraPathCost = OldCharger.ExtraPathCost;
     NewCharger.bDelayedSpawn = OldCharger.bDelayedSpawn;
     NewCharger.bSequential = OldCharger.bSequential;
+    NewCharger.NumClasses = 0;
+    NewCharger.CurrentClass = 0;
     for (i = 0; i < ArrayCount(NewCharger.PickupClasses); i++)
-        NewCharger.PickupClasses[i] = OldCharger.PickupClasses[i];
-    if (OldCharger.NumClasses > 0)
+        NewCharger.PickupClasses[i] = None;
+    bCurrentClassCopied = false;
+    for (i = 0; i < ArrayCount(OldCharger.PickupClasses); i++)
     {
-        NewCharger.NumClasses = OldCharger.NumClasses;
-        NewCharger.CurrentClass = OldCharger.CurrentClass;
-        NewCharger.PowerUp = OriginalPowerUp;
-    }
-    else
-    {
-        NewCharger.NumClasses = 0;
-        while (NewCharger.NumClasses < ArrayCount(NewCharger.PickupClasses)
-            && NewCharger.PickupClasses[NewCharger.NumClasses] != None)
-            NewCharger.NumClasses++;
+        if (OldCharger.PickupClasses[i] == None)
+            break;
+        if (IsDisallowedWildcardPickupClass(OldCharger.PickupClasses[i]))
+            continue;
 
-        if (NewCharger.NumClasses > 0)
+        NewCharger.PickupClasses[NewCharger.NumClasses] =
+            GetWildcardReplacementClass(OldCharger.PickupClasses[i]);
+        if (OldCharger.NumClasses > 0
+            && i == OldCharger.CurrentClass)
+        {
+            NewCharger.CurrentClass = NewCharger.NumClasses;
+            bCurrentClassCopied = true;
+        }
+        NewCharger.NumClasses++;
+    }
+
+    if (NewCharger.NumClasses > 0)
+    {
+        if (!bCurrentClassCopied)
         {
             if (NewCharger.bSequential)
                 NewCharger.CurrentClass = 0;
             else
                 NewCharger.CurrentClass = Rand(NewCharger.NumClasses);
+        }
+        NewCharger.PowerUp =
+            NewCharger.PickupClasses[NewCharger.CurrentClass];
+    }
+    else
+    {
+        NewCharger.CurrentClass = 0;
+        if (OriginalPowerUp != None
+            && !IsDisallowedWildcardPickupClass(OriginalPowerUp))
             NewCharger.PowerUp =
-                NewCharger.PickupClasses[NewCharger.CurrentClass];
-        }
+                GetWildcardReplacementClass(OriginalPowerUp);
         else
-        {
-            NewCharger.CurrentClass = 0;
-            NewCharger.PowerUp = OriginalPowerUp;
-        }
+            NewCharger.PowerUp = None;
     }
     NewCharger.bHidden = OriginalHidden;
 
@@ -1465,25 +1612,10 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
             NewCharger.MyPickup.Destroy();
         NewCharger.MyPickup = ExistingPickup;
         ExistingPickup.PickUpBase = NewCharger;
+        NewCharger.UpdatePickup(true);
     }
     else if (NewCharger.MyPickup == None && NewCharger.PowerUp != None)
         NewCharger.SpawnPickup();
-
-    ExistingPickup = NewCharger.MyPickup;
-    foreach AllActors(class'Pickup', CandidatePickup)
-    {
-        if (CandidatePickup.PickUpBase == NewCharger)
-        {
-            if (ExistingPickup == None)
-                ExistingPickup = CandidatePickup;
-            else if (CandidatePickup != ExistingPickup)
-                CandidatePickup.Destroy();
-        }
-    }
-    if (NewCharger.MyPickup == None && ExistingPickup != None)
-        NewCharger.MyPickup = ExistingPickup;
-    if (ExistingPickup != None)
-        ExistingPickup.PickUpBase = NewCharger;
 
     ApplyPickupAmbientGlowSetting(NewCharger);
 
@@ -1497,7 +1629,6 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
 
     if (NewCharger.MyMarker != None)
     {
-        NewCharger.MyMarker.myPickupBase = NewCharger;
         NewCharger.MyMarker.MarkedItem = NewCharger.MyPickup;
         NewCharger.MyMarker.ExtraCost = NewCharger.ExtraPathCost;
         if (NewCharger.MyPickup != None)
@@ -1505,6 +1636,13 @@ function bool ReplaceWildcardCharger(WildcardBase OldCharger)
     }
 
     OldCharger.MyPickup = None;
+    // Static map bases survive Destroy and still run WildcardBase.PostBeginPlay.
+    if (NewCharger.MyMarker != None)
+        NewCharger.MyMarker.myPickupBase = NewCharger;
+    for (i = 0; i < ArrayCount(OldCharger.PickupClasses); i++)
+        OldCharger.PickupClasses[i] = None;
+    OldCharger.PowerUp = None;
+    OldCharger.NumClasses = 0;
     if (OldCharger.MyEmitter != None)
         OldCharger.MyEmitter.Destroy();
     OldCharger.Destroy();
@@ -1583,6 +1721,8 @@ function bool IsExperimentalLiftpad(Actor Other)
 function bool CheckReplacement(Actor Other, out byte bSuperRelevant)
 {
     local UTAmmoPickup AmmoPickupActor;
+    local WildcardBase WildcardCharger;
+    local int i;
 
     bSuperRelevant = 0;
 
@@ -1602,11 +1742,14 @@ function bool CheckReplacement(Actor Other, out byte bSuperRelevant)
 
     ApplyPickupAmbientGlowSetting(Other);
 
+    if (bEnableFixedXWeapons && Other.Class == class'SniperRifle')
+        Weapon(Other).PickupClass = class'XelusLightningRiflePickup';
+
     if (bEnableExperimentalAmmoGrounding && IsXelusAmmoPickup(Other))
         GroundAmmoPickup(UTAmmoPickup(Other));
 
     if (Pickup(Other) != None && IsWildcardPickup(Pickup(Other)))
-        return true;
+        return !Other.IsA('AdrenalinePickup') && !Other.IsA('MiniHealthPack');
 
     if (Other.IsA('XelusLightningRiflePickup')
         || Other.IsA('XelusRedeemerPickup')
@@ -1708,6 +1851,16 @@ function bool CheckReplacement(Actor Other, out byte bSuperRelevant)
     {
         if (ReplaceWildcardCharger(WildcardBase(Other)))
             return false;
+    }
+
+    WildcardCharger = WildcardBase(Other);
+    if (WildcardCharger != None)
+    {
+        for (i = 0; i < ArrayCount(WildcardCharger.PickupClasses); i++)
+            WildcardCharger.PickupClasses[i] =
+                GetWildcardReplacementClass(WildcardCharger.PickupClasses[i]);
+        WildcardCharger.PowerUp =
+            GetWildcardReplacementClass(WildcardCharger.PowerUp);
     }
 
     if (xPickupBase(Other) != None)
@@ -1914,7 +2067,7 @@ defaultproperties
     HQTexturesText="Xelus HQ Pickup Textures"
     HQTexturesDesc="Enable or disable Xelus high-quality textures on supported health, adrenaline, and charger pickups."
     DisablePickupAmbientGlowText="Disable Pickup Ambient Glow"
-    DisablePickupAmbientGlowDesc="Disable ambient glow on pickups and pickup bases, including Xelus health-keg glow maps."
+    DisablePickupAmbientGlowDesc="Disable ambient glow on pickups and pickup bases, make health kegs and medboxes respond to lighting, and remove self-illumination from Xelus health-keg and medbox materials."
     XelusAdrenalineDesc="Choose the stock adrenaline pickup texture or a Xelus color variant."
     XelusUDamageDesc="Choose the stock, Xelus, or Xelus Classic UDamage pickup visual."
     XelusShieldDesc="Choose the stock, Xelus, Xelus Classic, or Shield Box pickup visual."

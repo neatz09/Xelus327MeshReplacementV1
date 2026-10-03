@@ -16,6 +16,8 @@ defaultproperties
     RotationRate=(Yaw=0)
     DrawScale=0.5
     StaticMesh=StaticMesh'XELUS_VanillaHQ.Pickups.PICKUPShieldBox'
+    Skins(0)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Box_SH'
+    Skins(1)=Shader'XELUS_VanillaHQ_TEX.ShieldS.Shield_Pulse_SH'
     RemoteRole=ROLE_DumbProxy
     bAlwaysRelevant=True
     bOnlyReplicateHidden=False

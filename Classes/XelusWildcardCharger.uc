@@ -22,50 +22,108 @@ simulated function PostBeginPlay()
 
 function SpawnPickup()
 {
-    if (MyPickup != None)
+    if (MyPickup != None || PowerUp == None)
         return;
 
-    Super.SpawnPickup();
+    MyPickup = Spawn(PowerUp, self, , Location + SpawnHeight * vect(0,0,1));
+    if (MyPickup == None)
+    {
+        Log("Xelus327: Unable to spawn wildcard pickup "$PowerUp$" for "$self);
+        return;
+    }
+    MyPickup.PickUpBase = self;
+    MyPickup.Event = Event;
+    if (MyMarker != None)
+    {
+        MyMarker.MarkedItem = MyPickup;
+        MyMarker.ExtraCost = ExtraPathCost;
+        MyPickup.MyMarker = MyMarker;
+    }
+}
+
+function bool UpdatePickup(bool bPreserveState)
+{
+    local Pickup OldPickup;
+    local Pickup NewPickup;
+
+    if (PowerUp == None)
+        return false;
+    if (MyPickup == None)
+    {
+        SpawnPickup();
+        return MyPickup != None;
+    }
+    if (MyPickup.Class == PowerUp)
+        return true;
+
+    OldPickup = MyPickup;
+    NewPickup = Spawn(PowerUp, self, OldPickup.Tag,
+        OldPickup.Location, OldPickup.Rotation);
+    if (NewPickup == None)
+    {
+        Log("Xelus327: Unable to change wildcard pickup to "$PowerUp$" for "$self);
+        return false;
+    }
+    NewPickup.PickUpBase = self;
+    NewPickup.bInstantRespawn = OldPickup.bInstantRespawn;
+    NewPickup.bPredictRespawns = OldPickup.bPredictRespawns;
+    NewPickup.RespawnTime = OldPickup.RespawnTime;
+    NewPickup.Event = OldPickup.Event;
+    if (bPreserveState)
+    {
+        NewPickup.PickupMessage = OldPickup.PickupMessage;
+        NewPickup.PickupSound = OldPickup.PickupSound;
+        NewPickup.PickupForce = OldPickup.PickupForce;
+        NewPickup.MaxDesireability = OldPickup.MaxDesireability;
+        NewPickup.SetCollisionSize(OldPickup.CollisionRadius, OldPickup.CollisionHeight);
+        if (TournamentHealth(OldPickup) != None
+            && TournamentHealth(NewPickup) != None)
+        {
+            TournamentHealth(NewPickup).HealingAmount = TournamentHealth(OldPickup).HealingAmount;
+            TournamentHealth(NewPickup).bSuperHeal = TournamentHealth(OldPickup).bSuperHeal;
+        }
+        if (ShieldPickup(OldPickup) != None && ShieldPickup(NewPickup) != None)
+            ShieldPickup(NewPickup).ShieldAmount = ShieldPickup(OldPickup).ShieldAmount;
+    }
+    NewPickup.MyMarker = OldPickup.MyMarker;
+    if (NewPickup.MyMarker != None)
+    {
+        NewPickup.MyMarker.MarkedItem = NewPickup;
+        OldPickup.MyMarker = None;
+    }
+    if (bPreserveState)
+    {
+        if (OldPickup.IsInState('WaitingForMatch'))
+            NewPickup.GotoState('WaitingForMatch');
+        else if (OldPickup.IsInState('Sleeping'))
+            NewPickup.GotoState('Sleeping');
+        else if (OldPickup.IsInState('Disabled'))
+            NewPickup.GotoState('Disabled');
+    }
+    MyPickup = NewPickup;
+    OldPickup.Destroy();
+    return true;
 }
 
 function TurnOn()
 {
-    local Pickup OldPickup;
-    local Pickup NewPickup;
-    local bool OldInstantRespawn;
-    local bool OldPredictRespawns;
-    local float OldRespawnTime;
-    local name OldEvent;
-    local name OldTag;
+    local int OldClass;
+    local class<Pickup> OldPowerUp;
 
     if (NumClasses <= 0)
         return;
 
+    OldClass = CurrentClass;
+    OldPowerUp = PowerUp;
     if (bSequential)
         CurrentClass = (CurrentClass + 1) % NumClasses;
     else
         CurrentClass = Rand(NumClasses);
-
     PowerUp = PickupClasses[CurrentClass];
-
-    if (PowerUp == None || MyPickup == None)
-        return;
-
-    OldPickup = MyPickup;
-    OldInstantRespawn = OldPickup.bInstantRespawn;
-    OldPredictRespawns = OldPickup.bPredictRespawns;
-    OldRespawnTime = OldPickup.RespawnTime;
-    OldEvent = OldPickup.Event;
-    OldTag = OldPickup.Tag;
-    NewPickup = OldPickup.Transmogrify(PowerUp);
-    if (NewPickup != None)
+    if (!UpdatePickup(false))
     {
-        NewPickup.bInstantRespawn = OldInstantRespawn;
-        NewPickup.bPredictRespawns = OldPredictRespawns;
-        NewPickup.RespawnTime = OldRespawnTime;
-        NewPickup.Event = OldEvent;
-        NewPickup.Tag = OldTag;
-        MyPickup = NewPickup;
+        CurrentClass = OldClass;
+        PowerUp = OldPowerUp;
     }
 }
 
