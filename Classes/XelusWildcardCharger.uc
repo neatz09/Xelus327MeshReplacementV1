@@ -8,6 +8,56 @@ var() bool bSequential;
 var int NumClasses;
 var int CurrentClass;
 
+function bool IsBoxPickup(Pickup PickupActor)
+{
+    return PickupActor != None
+        && (PickupActor.IsA('XelusShieldBoxPickup')
+            || PickupActor.IsA('XelusSuperShieldBoxPickup')
+            || PickupActor.IsA('XelusHealthMedBoxPickup')
+            || PickupActor.IsA('XelusU1SuperHealthPickup'));
+}
+
+function GroundBoxPickup(Pickup PickupActor)
+{
+    local Actor HitActor;
+    local vector HitLocation;
+    local vector HitNormal;
+    local vector TraceStart;
+    local vector TraceEnd;
+    local vector GroundLocation;
+    local bool bOldCollideActors;
+    local bool bOldBlockActors;
+    local bool bOldBlockPlayers;
+    local bool bOldCollideWorld;
+
+    if (!IsBoxPickup(PickupActor) || PickupActor.bDropped
+        || PickupActor.Base != None)
+        return;
+
+    TraceStart = PickupActor.Location + vect(0,0,16);
+    TraceEnd = PickupActor.Location - 256.0 * vect(0,0,1);
+    HitActor = PickupActor.Trace(HitLocation, HitNormal, TraceEnd,
+        TraceStart, false);
+    if (HitActor == None || HitNormal.Z < 0.5)
+        return;
+
+    GroundLocation = PickupActor.Location;
+    GroundLocation.Z = HitLocation.Z;
+    if (Abs(GroundLocation.Z - PickupActor.Location.Z) < 1.0)
+        return;
+
+    bOldCollideActors = PickupActor.bCollideActors;
+    bOldBlockActors = PickupActor.bBlockActors;
+    bOldBlockPlayers = PickupActor.bBlockPlayers;
+    bOldCollideWorld = PickupActor.bCollideWorld;
+    PickupActor.SetCollision(false, false, false);
+    PickupActor.bCollideWorld = false;
+    PickupActor.SetLocation(GroundLocation);
+    PickupActor.bCollideWorld = bOldCollideWorld;
+    PickupActor.SetCollision(bOldCollideActors, bOldBlockActors,
+        bOldBlockPlayers);
+}
+
 simulated function PostBeginPlay()
 {
     if (Role == ROLE_Authority)
@@ -32,6 +82,7 @@ function SpawnPickup()
         return;
     }
     MyPickup.PickUpBase = self;
+    GroundBoxPickup(MyPickup);
     MyPickup.Event = Event;
     if (MyMarker != None)
     {
@@ -65,6 +116,7 @@ function bool UpdatePickup(bool bPreserveState)
         return false;
     }
     NewPickup.PickUpBase = self;
+    GroundBoxPickup(NewPickup);
     NewPickup.bInstantRespawn = OldPickup.bInstantRespawn;
     NewPickup.bPredictRespawns = OldPickup.bPredictRespawns;
     NewPickup.RespawnTime = OldPickup.RespawnTime;

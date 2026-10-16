@@ -179,6 +179,7 @@ simulated function DisablePickupGlow(Pickup PickupActor)
                 continue;
             }
             Replacement.Diffuse = Original.Diffuse;
+            Replacement.SelfIllumination = None;
             Replacement.Opacity = Original.Opacity;
             Replacement.Specular = Original.Specular;
             Replacement.SpecularityMask = Original.SpecularityMask;
